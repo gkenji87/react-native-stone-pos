@@ -151,5 +151,7 @@
       ]
     ]
   },
-  "dependencies": {}
+  "dependencies": {
+    "@babel/runtime": "^7.28.4"
+  }
 }

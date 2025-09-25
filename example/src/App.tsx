@@ -322,6 +322,9 @@ export default function App() {
         );
       }
     } catch (e) {
+      console.log('Error', `Your test failed: ${JSON.stringify(e)}`);      
+      console.log(`Your test failed: ${JSON.stringify(e)}`);      
+
       Alert.alert('Error', `Your test failed: ${JSON.stringify(e)}`);
     }
 

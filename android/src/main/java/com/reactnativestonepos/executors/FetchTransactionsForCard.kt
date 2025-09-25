@@ -1,7 +1,7 @@
 package com.reactnativestonepos.executors
 
 import android.app.Activity
-import br.com.stone.posandroid.providers.PosValidateTransactionByCardProvider
+// import br.com.stone.posandroid.providers.PosValidateTransactionByCardProvider
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.modules.core.DeviceEventManagerModule
@@ -55,65 +55,8 @@ class FetchTransactionsForCard(
             }
           }
 
-        val transactionProvider =
-          if (StoneTransactionHelpers.isRunningInPOS(reactApplicationContext)) {
-            PosValidateTransactionByCardProvider(
-              if (useDefaultUI) {
-                currentActivity!!
-              } else {
-                reactApplicationContext
-              }
-            )
-          } else {
-            ValidateTransactionByCardProvider(
-              if (useDefaultUI) {
-                currentActivity!!
-              } else {
-                reactApplicationContext
-              }, selectedPinPad!!
-            )
-          }
-
-        transactionProvider.useDefaultUI(useDefaultUI)
-        transactionProvider.dialogMessage = if (dialogMessage.isNullOrEmpty()) {
-          "Validando transação"
-        } else {
-          dialogMessage
-        }
-        transactionProvider.dialogTitle = if (dialogTitle.isNullOrEmpty()) {
-          "Aguarde"
-        } else {
-          dialogTitle
-        }
-
-        transactionProvider.connectionCallback = object : StoneActionCallback {
-          override fun onSuccess() {
-            promise.resolve(
-              writableArrayFrom(
-                transactionProvider.transactionsWithCurrentCard.map {
-                  ConversionHelpers.convertTransactionToWritableMap(it)
-                }
-              )
-            )
-          }
-
-          override fun onError() {
-            promise.reject("405", "Generic Error - Transaction Failed [onError from Provider] - Check adb log output")
-          }
-
-          override fun onStatusChanged(action: Action?) {
-            reactApplicationContext
-              .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-              .emit(
-                progressCallbackEventName, writableMapOf(
-                  "initiatorTransactionKey" to null,
-                  "status" to action?.name
-                )
-              )
-          }
-        }
-
-        transactionProvider.execute()
+        // Temporarily disabled in this Sunmi-only build
+        throw CodedException("999", "FetchTransactionsForCard is not supported in this build")
       }
     } catch (e: CodedException) {
       promise.reject(e.code, e.internalMessage)

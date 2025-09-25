@@ -1,8 +1,11 @@
 package com.reactnativestonepos.executors
 
+import android.R
 import android.app.Activity
-import br.com.stone.posandroid.datacontainer.api.util.toEncodedString
-import br.com.stone.posandroid.providers.PosTransactionProvider
+// import br.com.stone.posandroid.datacontainer.api.util.toEncodedString
+import android.graphics.Bitmap
+import android.util.Base64
+// import br.com.stone.posandroid.providers.PosTransactionProvider
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
@@ -21,6 +24,7 @@ import stone.providers.BaseTransactionProvider
 import stone.providers.TransactionProvider
 import stone.utils.PinpadObject
 import stone.utils.Stone
+import java.io.ByteArrayOutputStream
 
 class MakeTransaction(
   reactApplicationContext: ReactApplicationContext,
@@ -81,15 +85,35 @@ class MakeTransaction(
         }
       }
 
-      val transactionProvider =
+      val transactionProvider: BaseTransactionProvider =
         if (StoneTransactionHelpers.isRunningInPOS(reactApplicationContext)) {
-          PosTransactionProvider(
-            if (useDefaultUI) {
-              currentActivity!!
-            } else {
-              reactApplicationContext
-            }, transactionObject, selectedUser
+          // Try to instantiate PosTransactionProvider via reflection (SDK 4.11.6 moved packages per manufacturer)
+          val ctx = if (useDefaultUI) currentActivity!! else reactApplicationContext
+          val candidates = listOf(
+            "br.com.stone.posandroid.providers.PosTransactionProvider",
+            "br.com.stone.posandroid.sunmi.providers.PosTransactionProvider"
           )
+
+          var provider: BaseTransactionProvider? = null
+          var lastError: Exception? = null
+
+          for (className in candidates) {
+            try {
+              val clazz = Class.forName(className)
+              val ctor = clazz.getConstructor(android.content.Context::class.java, stone.database.transaction.TransactionObject::class.java, stone.user.UserModel::class.java)
+              val instance = ctor.newInstance(ctx, transactionObject, selectedUser)
+              provider = instance as BaseTransactionProvider
+              break
+            } catch (e: Exception) {
+              lastError = e
+            }
+          }
+
+          if (provider == null) {
+            throw Exception("POS provider not found for this device. Last error: ${lastError?.message}")
+          }
+
+          provider
         } else {
           TransactionProvider(
             if (useDefaultUI) {
@@ -157,7 +181,14 @@ class MakeTransaction(
                 "status" to action?.name,
                 "transactionStatus" to transactionProvider.transactionStatus.name,
                 "messageFromAuthorize" to transactionProvider.messageFromAuthorize,
-                "qrCode" to if (action == Action.TRANSACTION_WAITING_QRCODE_SCAN) transactionObject?.qrCode?.toEncodedString() else null
+//                "qrCode" to if (action == Action.TRANSACTION_WAITING_QRCODE_SCAN) transactionObject?.qrCode?.toEncodedString() else null
+                "qrCode" to if (action == Action.TRANSACTION_WAITING_QRCODE_SCAN) {
+                  if (transactionObject?.qrCode !== null) {
+                    convertBitmapToBase64(transactionObject.qrCode)
+                  } else {
+                    null
+                  }
+                } else null
               )
             )
         }
@@ -165,6 +196,13 @@ class MakeTransaction(
 
       executeTaskWithReference("makeTransaction", transactionProvider)
     }
+  }
+
+  private fun convertBitmapToBase64(bitmap: Bitmap): String {
+    val outputStream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+
+    return Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT)
   }
 
   fun cancelAction(promise: Promise) {
